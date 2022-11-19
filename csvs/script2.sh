@@ -1,0 +1,2 @@
+
+la . | grep 84 | awk '{print $9}' | sed 's/.$//' | sed 's/.$//' | sed 's/.$//' | sed 's/.$//' | awk '{print "curl https://api.coronavirus.data.gov.uk/v2/data?auk/v2/data?areaType=utla&areaCode=$1^Cetric=newCasesBySpecimenDate&metric=newDeaths28DaysByDeathDate&metric=newVirusTestsBySpecimenDate&format=csv' -o $1.csv\'}'are

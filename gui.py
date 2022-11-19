@@ -6,7 +6,6 @@ import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import json
-from perlin_noise import PerlinNoise
 
 ## GET DATA
 
@@ -19,7 +18,6 @@ def get_dummy_data(time):
     Output:
     df - case numbers for each county for a time t
     """
-    noise = PerlinNoise(octaves=10, seed=122)
     return rands * 50 + 25 - (coefs - 0.5) * time
 
 idmap = {}

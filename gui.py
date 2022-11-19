@@ -20,25 +20,23 @@ def get_dummy_data(time):
     df - case numbers for each county for a time t
     """
     noise = PerlinNoise(octaves=10, seed=122)
-    return rands * 50 + 50 - (coefs - 0.5) * time
+    return rands * 50 + 25 - (coefs - 0.5) * time
 
-## GENERATE FIGURE
+## GENERATE MAP FIGURE
 
-def get_figure(num_steps, step_time):
+def get_map_figure(num_steps, step_time):
     with open('uk-counties-2.json') as file:
         counties = json.load(file)
 
-    def construct_df():
-        df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
-        for t in range(num_steps):
-            data = get_dummy_data(t*step_time)
-            for i in range(len(data)):
-                df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[i]]
-        df.astype({ 'fips': 'int32' })
-        return df
+    df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
+    for t in range(num_steps):
+        data = get_dummy_data(t*step_time)
+        for i in range(len(data)):
+            df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[i]]
+    df = df.astype({ 'fips': 'int32' })
 
     fig = px.choropleth_mapbox(
-        construct_df(), 
+        df, 
         locations='fips', 
         color='cases',
         animation_frame='days',
@@ -54,8 +52,21 @@ def get_figure(num_steps, step_time):
     )
     fig.update_layout({ 'margin':{"r":0,"t":0,"l":0,"b":0}, 'height':600, 'uirevision': 'constant' })
     fig.update_traces(showlegend=False)
+    return fig
 
-fig = get_figure(20, 5)
+# GENERATE GRAPH FIGURE
+
+def get_graph_figure(selections):
+    df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
+    for t in range(0, 100):
+        data = get_dummy_data(t)
+        for i in selections:
+            df.loc[len(df.index)] = [int(i), t, data[i]]
+    df = df.astype({ 'fips': 'int32' })
+
+    fig = px.line(df, x="days", y="cases", color='fips', range_x=(0, 100), range_y=(0, 100))
+    return fig
+    
 
 ## CREATE APP
 
@@ -82,13 +93,14 @@ navbar = dbc.Navbar(
 
 app.layout = html.Div(children=[
     navbar,
+    html.Div(id='hidden-div', style={'display':'none'}),
     dbc.Container([
         dbc.Row(
             [
                 dbc.Col(
                     dcc.Graph(
-                        id='graph-map',
-                        figure=fig
+                        id='map-figure',
+                        figure=get_map_figure(20, 5)
                     ),
                     xxl=6,
                     xl=6,
@@ -98,58 +110,16 @@ app.layout = html.Div(children=[
                     xs=12,
                 ),
                 dbc.Col(
-                    dcc.Markdown(children='''
-# Plots
-This is where your plots will show up
-# Motives
-## Purpose
-This app does x and y and z. 234534 534 5
-245 345 35 34 5345345 345 34 53 45 3 435
-34 53 5345 345 34 5sd f sf sdf sd fsf fe
-wf ew fwe f ewf wf w f wferg trhrthrh 
-## How to use
-This is how you use the app. 1 2 3 4
-5 4 5 545675675 7857 876 8 678 67 867  ergrege geergeg egergerg gege
-ge egegergergge fwsofwfkwopef weefjiweofi ewdioej wefn wefn weoifjwio
-## Why is it important
-Because it is. dfije freferf rernfwf eefne fernfe eof
-efue efne eroif eorif opkwe ewoejd wlioejd weopjkd weifj weopfj wpoefk
-wlfn wefjn, wfoij owiefj wopf. iwjef wefj 
-# Plots
-This is where your plots will show up
-# Motives
-## Purpose
-This app does x and y and z. 234534 534 5
-245 345 35 34 5345345 345 34 53 45 3 435
-34 53 5345 345 34 5sd f sf sdf sd fsf fe
-wf ew fwe f ewf wf w f wferg trhrthrh 
-## How to use
-This is how you use the app. 1 2 3 4
-5 4 5 545675675 7857 876 8 678 67 867  ergrege geergeg egergerg gege
-ge egegergergge fwsofwfkwopef weefjiweofi ewdioej wefn wefn weoifjwio
-## Why is it important
-Because it is. dfije freferf rernfwf eefne fernfe eof
-efue efne eroif eorif opkwe ewoejd wlioejd weopjkd weifj weopfj wpoefk
-wlfn wefjn, wfoij owiefj wopf. iwjef wefj 
-# Plots
-This is where your plots will show up
-# Motives
-## Purpose
-This app does x and y and z. 234534 534 5
-245 345 35 34 5345345 345 34 53 45 3 435
-34 53 5345 345 34 5sd f sf sdf sd fsf fe
-wf ew fwe f ewf wf w f wferg trhrthrh 
-## How to use
-This is how you use the app. 1 2 3 4
-5 4 5 545675675 7857 876 8 678 67 867  ergrege geergeg egergerg gege
-ge egegergergge fwsofwfkwopef weefjiweofi ewdioej wefn wefn weoifjwio
-## Why is it important
-Because it is. dfije freferf rernfwf eefne fernfe eof
-efue efne eroif eorif opkwe ewoejd wlioejd weopjkd weifj weopfj wpoefk
-wlfn wefjn, wfoij owiefj wopf. iwjef wefj       
-                        ''',
-                        style={ 'height': 'calc(100vh-35px)', 'overflow': 'scroll-y' }
-                    ),
+                    [
+                        dcc.Markdown(children='''
+                            # Plots
+                            Click a county to plot the number of cases in the next 30 days.
+                        '''),
+                        dcc.Graph(
+                            id='graph-figure',
+                            figure=get_graph_figure(set())
+                        )   
+                    ],
                     xxl=6,
                     xl=5,
                     lg=12,
@@ -161,18 +131,36 @@ wlfn wefjn, wfoij owiefj wopf. iwjef wefj
             align="center",
             className="g-0"
         )
-    ],
-    style={ 'margin-top': '20px', "margin-bottom": '100px' })
+        ],
+        style={ 'margin-top': '20px', "margin-bottom": '20px' }
+    ),
+    dbc.Container(
+        [dcc.Markdown(children='''
+            # Motives
+            ## Purpose
+            This app does x and y and z. 234534 534 5
+            245 345 35 34 5345345 345 34 53 45 3 435
+            34 53 5345 345 34 5sd f sf sdf sd fsf fe
+            wf ew fwe f ewf wf w f wferg trhrthrh 
+            ## How to use
+            This is how you use the app. 1 2 3 4
+            5 4 5 545675675 7857 876 8 678 67 867  ergrege geergeg egergerg gege
+            ge egegergergge fwsofwfkwopef weefjiweofi ewdioej wefn wefn weoifjwio
+            ## Why is it important
+            Because it is. dfije freferf rernfwf eefne fernfe eof
+            efue efne eroif eorif opkwe ewoejd wlioejd weopjkd weifj weopfj wpoefk
+            wlfn wefjn, wfoij owiefj wopf. iwjef wefj 
+        ''')]
+    )
 ])
 
 selections = set()
 
 @app.callback(
-    #Output('graph-map', 'figure'),
-    input=[Input('graph-map', 'clickData')])
+    Output('graph-figure', 'figure'),
+    [Input('map-figure', 'clickData')])
 def update_figure(clickData):
-    print('AAAAAAAAAAA!')  
-    if clickData is not None:            
+    if clickData is not None:
         location = clickData['points'][0]['location']
 
         if location not in selections:
@@ -182,6 +170,7 @@ def update_figure(clickData):
         
         print(selections)
 
+    return get_graph_figure(selections)
 
 if __name__ == '__main__':
     app.run_server(debug=True)

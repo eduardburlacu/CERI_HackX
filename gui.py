@@ -22,19 +22,24 @@ def get_dummy_data(time):
     noise = PerlinNoise(octaves=10, seed=122)
     return rands * 50 + 25 - (coefs - 0.5) * time
 
+idmap = {}
+with open('uk-counties-2.json') as file:
+    counties = json.load(file)
+for f in counties['features']:
+    idmap[f['properties']['ID_2']] = f['properties']['NAME_2']
+idmap = [idmap[i+1] for i in range(192)]
+
 ## GENERATE MAP FIGURE
 
 def get_map_figure(num_steps, step_time):
-    with open('uk-counties-2.json') as file:
-        counties = json.load(file)
 
     df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
     for t in range(num_steps):
         data = get_dummy_data(t*step_time)
         for i in range(len(data)):
-            df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[i]]
+            df.loc[len(df.index)] = [i, f"Day {t*step_time}", data[i]]
     df = df.astype({ 'fips': 'int32' })
-
+    
     fig = px.choropleth_mapbox(
         df, 
         locations='fips', 
@@ -61,10 +66,10 @@ def get_graph_figure(selections):
     for t in range(0, 100):
         data = get_dummy_data(t)
         for i in selections:
-            df.loc[len(df.index)] = [int(i), t, data[i]]
-    df = df.astype({ 'fips': 'int32' })
+            df.loc[len(df.index)] = [i, t, data[i]]
+    df = df.astype({ 'fips': 'int32', 'days': 'int32' })
 
-    fig = px.line(df, x="days", y="cases", color='fips', range_x=(0, 100), range_y=(0, 100))
+    fig = px.line(df, x="days", y="cases", labels=idmap, color='fips', range_x=(0, 100), range_y=(0, 100))
     return fig
     
 

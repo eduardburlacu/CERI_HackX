@@ -3,14 +3,17 @@ import pandas as pd
 import os
 import numpy as np
 
+model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model")
+data_dirname = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "county_data")
+
 def upload_model():
-    with open('model','rb') as f:
+    with open(model_filename,'rb') as f:
         model = pickle.load(f)
     return model
 
 def get_all_data():
     list_of_df= []
-    for (root, dirs, files) in os.walk(os.path.join(os.getcwd(), "county_data")):
+    for (root, dirs, files) in os.walk(data_dirname):
         for file in files:
             if file[-4:] == ".csv": 
                 df = pd.read_csv(os.path.join(root, file))

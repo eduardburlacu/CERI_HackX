@@ -7,7 +7,7 @@ def get_all_data():
     list_of_df= []
     for (root, dirs, files) in os.walk(os.path.join(os.getcwd(), "county_data")):
         for file in files:
-            if file[-4:] == ".csv": 
+            if file[-4:] == ".csv" and os.path.getsize(os.path.join(root, file)) > 100:  
                 df = pd.read_csv(os.path.join(root, file))
                 df = df.dropna()
                 if len(df):
@@ -16,7 +16,7 @@ def get_all_data():
                     df['y'] = df["newCasesBySpecimenDate"]/df["newVirusTestsBySpecimenDate"]
                     for i in range(len(df)):
                         if df["newVirusTestsBySpecimenDate"][i]==0:
-                            df.loc[i,'y']=0
+                            df.loc[i, 'y']=0
                     df.columns=['Date','Cases','Deaths','Tests','True_Positive']
                     #df=df.set_index('Date')
                     list_of_df.append((name,df))

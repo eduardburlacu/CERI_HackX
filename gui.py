@@ -29,13 +29,14 @@ for f in counties['features']:
     cnam = f['properties']['name']
     idmap[f['properties']['id']] = cnam
     data[cnam] = data_raw[cnam]
-    other_data['Cases'][cnam] = other_data_raw['Cases'][cnam]
-    other_data['Deaths'][cnam] = other_data_raw['Deaths'][cnam]
-    other_data['Tests'][cnam] = other_data_raw['Tests'][cnam]
+    other_data['Cases'][cnam] = other_data_raw[cnam]['Cases']
+    other_data['Deaths'][cnam] = other_data_raw[cnam]['Deaths']
+    other_data['Tests'][cnam] = other_data_raw[cnam]['Tests']
 num_dataset = len(list(idmap.keys()))
 idmap = [idmap[i] for i in range(num_dataset)]
 for (cn, dn) in all_data_raw:
     all_data[cn] = dn
+
 
 ## GENERATE MAP FIGURE
 
@@ -53,6 +54,10 @@ def get_map_figure():
             df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[idmap[i]][t*step_time]]
     df = df.astype({ 'cid': 'int32' })
     
+    ar = []
+    for i in idmap:
+        ar += ([i]*num_steps)
+
     fig = px.choropleth_mapbox(
         df, 
         locations='cid', 
@@ -62,7 +67,7 @@ def get_map_figure():
         featureidkey="properties.id",
         color_continuous_scale="Viridis",
         range_color=(0, risk_range),
-        hover_name=idmap*num_steps,
+        hover_name=ar,
         center={ 'lon': -2, 'lat': 54 },
         mapbox_style="carto-positron",
         zoom=4.5,
@@ -83,43 +88,59 @@ def get_graph_figure(selections):
     for t in range(num_steps*step_time):
         for i in selections:
             df.loc[len(df.index)] = [i, t, data[idmap[i]][t]]
-    
     df = df.astype({ 'cid': 'int32', 'days': 'int32' })
+    
+    fig = go.Figure()
+    for i in selections:
+        dfi = df.loc[df['cid'] == i]
+        fig.add_trace(go.Scatter(x=list(dfi['days']), y=list(dfi['risk']), name=idmap[i]))
 
-    fig = px.line(df, x="days", y="risk", 
-        # hover_name=idmap*20, 
-        color='cid', range_x=(-num_steps*step_time, num_steps*step_time), range_y=(0, risk_range))
+    fig.update_layout(
+        xaxis_title="Days",
+        yaxis_title="True positive rate",
+        legend_title="Region",
+    )
+    fig.update_xaxes(range=(-num_steps*step_time, num_steps*step_time))
+    fig.update_yaxes(range=(0, risk_range))
     return fig
     
 def get_table_old_figure(selected):
     if selected == -1:
-        return go.Figure(
+        fig = go.Figure(
             data=[go.Table(
             header=dict(values=['Date', 'Cases', 'Deaths', 'Tests', 'True Positivie Rate'], align='left'),
             cells=dict(values=[[], [], [], []], align='right'))
-    ])
+        ])
+        fig.update_layout({ 'margin':{"r":10,"t":0,"l":10,"b":0} })
+        return fig
     df = all_data[idmap[selected]]
     lastcol = np.around(np.array(df['True_Positive']), 4)
-    return go.Figure(
+    fig = go.Figure(
         data=[go.Table(
             header=dict(values=['Date', 'Cases', 'Deaths', 'Tests', 'True Positivie Rate'], align='left'),
             cells=dict(values=[df['Date'], df['Cases'], df['Deaths'], df['Tests'], lastcol], align='right'))
     ])
+    fig.update_layout({ 'margin':{"r":10,"t":0,"l":10,"b":0} })
+    return fig
 
 def get_table_new_figure(selected):
     if selected == -1:
-        return go.Figure(
+        fig = go.Figure(
             data=[go.Table(
                 header=dict(values=['Days', 'Cases', 'Deaths', 'Tests', 'True Positive Rate'], align='left'),
             cells=dict(values=[[], []], align='right'))
-    ])
-    print(data[idmap[selected]], range(0, 30), data[idmap[selected]])
+        ])
+        fig.update_layout({ 'margin':{"r":10,"t":0,"l":10,"b":0} })
+        return fig
+    
     row = np.around(np.array(data[idmap[selected]]), 4)
-    return go.Figure(
+    fig = go.Figure(
         data=[go.Table(
-            header=dict(values=['Days', 'True Positive Rate'], align='left'),
-            cells=dict(values=[list(range(0, 30)), other_data['Cases'][selected], other_data['Deaths'][selected], other_data['Tests'][selected], row], align='right'))
+            header=dict(values=['Days', 'Cases', 'Deaths', 'Tests', 'True Positive Rate'], align='left'),
+            cells=dict(values=[list(range(0, 30)), other_data['Cases'][idmap[selected]], other_data['Deaths'][idmap[selected]], other_data['Tests'][idmap[selected]], row], align='right'))
     ])
+    fig.update_layout({ 'margin':{"r":10,"t":0,"l":10,"b":0} })
+    return fig
 
 
 ## CREATE APP
@@ -209,24 +230,30 @@ app.layout = html.Div(children=[
     ]),
     dbc.Container(
         [dcc.Markdown(children='''
-            # Motives
-            ## Purpose
-            This app does x and y and z. 234534 534 5
-            245 345 35 34 5345345 345 34 53 45 3 435
-            34 53 5345 345 34 5sd f sf sdf sd fsf fe
-            wf ew fwe f ewf wf w f wferg trhrthrh 
-            ## How to use
-            This is how you use the app. 1 2 3 4
-            5 4 5 545675675 7857 876 8 678 67 867  ergrege geergeg egergerg gege
-            ge egegergergge fwsofwfkwopef weefjiweofi ewdioej wefn wefn weoifjwio
-            ## Why is it important
-            If a new epidemic arises, it is important to localize regions with high potential of risk before it gets out of control, so preventive measures can be undertaken before cases start arising.
+# Motives
 
-            # Final Words
-            final words 
+## Purpose
+This app provides forecasting for the next 30 days for every county in England.
+To see the details about local risk, hover the cursor over the relevant region. By clicking, past data for infection rate is plotted in the section Plots. 
+
+## Training Data
+The data was fetched from the Gov UK official site, attached [here](coronavirus.data.gov.uk/details/download).
+For developers, a file containing all the training models and with extracted weight/bias values can be downloaded [here](/Covid_Cases_Predictor-main/models.zip).
+
+## Why is it important
+If a new epidemic arises, it is important to localize regions with high potential of risk before it gets out of control,
+so preventive measures can be undertaken before cases start arising.
+
+# Future steps
+We have many other features we would like to recreate:
+- Extending the data over England's borders
+- Plotting the predicted values for other metrics
+- Creating an API for embedding the map and prediction data into a website
+- Decrease website bloat
+- Speed up inference for the true positive rate model
         ''', style={"padding-bottom": 50})]
     ),
-])
+], style={'font-size': '15px' }) #, 'background-color': '#110226', 'color': 'white'})
 
 # CALLBACKS
 
@@ -259,12 +286,10 @@ def update_figure(clickData):
 @app.callback(
     Output('graph-figure', 'figure'),
     Input('clear-btn', 'n_clicks'))
-def update_figure_2(clickInfo):
-    print(clickInfo)
-    if clickInfo is not None:
-        selections = set()
+def update_figure_2(_):
+    selections = set()
     return get_graph_figure(selections)
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server()

@@ -55,7 +55,9 @@ def get_y_data(n, list_of_df, past_values=100):
 def get_predicted(steps):
     pth = os.path.join(cache_dirname, 'predicted.json')
     if os.path.isfile(pth):
+        print('Skipped PREDICTED')
         return json.load(open(pth))
+    print('Running PREDICTED')
 
     list_of_df = get_all_data()
     model = load_model(model_filename)
@@ -67,7 +69,7 @@ def get_predicted(steps):
         for j in range(steps):
             y_pred = model.predict(np.array([timeline[-size:]]), verbose=0)
             timeline = np.append(timeline, y_pred)
-        prediction_dict[list_of_df[i][0]] = timeline[-steps:]
+        prediction_dict[list_of_df[i][0]] = list(timeline[-steps:])
 
     with open(pth, 'w') as fp:
         json.dump(prediction_dict, fp)
@@ -76,7 +78,9 @@ def get_predicted(steps):
 def get_other_predicted():
     pth = os.path.join(cache_dirname, 'other_predicted.json')
     if os.path.isfile(pth):
+        print('Skipping OTHER PREDICTED')
         return json.load(open(pth))
+    print('Running OTHER PREDICTED')
 
     list_of_df = get_all_data()
     prediction_dict = {}
@@ -86,7 +90,7 @@ def get_other_predicted():
         prediction_dict[list_of_df[i][0]] = {}
 
     for feat in ["Cases", "Deaths", "Tests"]:
-        with open(os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model_"+feat),'rb') as f:
+        with open(os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", 'models', "model_"+feat),'rb') as f:
             model = pickle.load(f)
         for i in range(len(list_of_df)):
             X, y = get_y_data(i, list_of_df, past_values=50)
@@ -94,7 +98,7 @@ def get_other_predicted():
             y_future = y_future[0]
             for j, val in enumerate(y_future):
                 if val < 0: y_future[j] = 0
-            prediction_dict[list_of_df[i][0]][feat] = np.round(y_future)
+            prediction_dict[list_of_df[i][0]][feat] = list(np.round(y_future))
 
     with open(pth, 'w') as fp:
         json.dump(prediction_dict, fp)

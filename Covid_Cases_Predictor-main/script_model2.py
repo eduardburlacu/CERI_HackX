@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pickle
 
-model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model2")
+model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "models", "model_True_Positive")
 data_dirname = os.path.join(os.getcwd(), "csvs")
 
 def get_all_data():

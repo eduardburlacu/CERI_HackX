@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import json
 
-model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model2")
+model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "models", "model_True_Positive")
 data_dirname = os.path.join(os.getcwd(), "csvs")
 cache_dirname = os.path.join(os.getcwd(), '__mycache__');
 if not os.path.isdir(cache_dirname):
@@ -65,7 +65,7 @@ def get_predicted(steps):
         timeline = X[-1]
         size = len(timeline)
         for j in range(steps):
-            y_pred = model.predict(np.array([timeline[-size:]]))
+            y_pred = model.predict(np.array([timeline[-size:]]), verbose=0)
             timeline = np.append(timeline, y_pred)
         prediction_dict[list_of_df[i][0]] = timeline[-steps:]
 

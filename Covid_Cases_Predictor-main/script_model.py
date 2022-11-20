@@ -2,19 +2,19 @@ import pickle
 import pandas as pd
 import os
 import numpy as np
-import tensorflow as tf
-from datetime import datetime
-from tensorflow import keras
-import matplotlib.pyplot as plt
+
+model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model")
+data_dirname = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "county_data")
+
 
 def upload_model():
-    with open('model','rb') as f:
+    with open(model_filename,'rb') as f:
         model = pickle.load(f)
     return model
 
 def process_csv():
     list_of_df= []
-    for (root, dirs, files) in os.walk(os.path.join(os.getcwd(), "county_data")):
+    for (root, dirs, files) in os.walk(data_dirname):
         for file in files:
             if file[-4:] == ".csv": 
                 df = pd.read_csv(os.path.join(root, file))

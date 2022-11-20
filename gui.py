@@ -7,82 +7,80 @@ import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import json
-from perlin_noise import PerlinNoise
+import sys
 
 ## GET DATA
 
-rands = np.random.rand(192)
-coefs = np.random.rand(192)
-def get_dummy_data(time):
-    """
-    Input:
-    time - time value in days (between 1 and 100)
-    Output:
-    df - case numbers for each county for a time t
-    """
-    noise = PerlinNoise(octaves=10, seed=122)
-    return rands * 50 + 25 - (coefs - 0.5) * time
+sys.path.append('Covid_Cases_Predictor-main/')
+from script_model import get_predicted
+data = get_predicted()
+sys.path.append('../')
 
 idmap = {}
+namemap = {}
+data2 = {}
 with open('uk-counties-2.json') as file:
     counties = json.load(file)
 for f in counties['features']:
-    idmap[f['properties']['ID_2']] = f['properties']['NAME_2']
-idmap = [idmap[i+1] for i in range(192)]
+    idmap[f['properties']['id']] = f['properties']['name']
+    namemap[f['properties']['name']] = f['properties']['id']
+    data2[f['properties']['name']] = data[f['properties']['name']]
+num_dataset = len(list(idmap.keys()))
+idmap = [idmap[i] for i in range(num_dataset)]
+data = data2
 
 ## GENERATE MAP FIGURE
 
-def get_map_figure(num_steps, step_time):
+num_steps = 15
+step_time = 2
+risk_range = 0.2
 
-    df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
-    for t in range(num_steps):
-        data = get_dummy_data(t*step_time)
-        for i in range(len(data)):
-            df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[i]]
-    df = df.astype({ 'fips': 'int32' })
-    color='cases'
-    print(df[color])
-    print(df['days'])
+def get_map_figure():
+
+    df = pd.DataFrame({ 'cid': [], 'days': [], 'risk': [] })
+    for i in range(num_dataset):
+        for t in range(num_steps):
+            df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[idmap[i]][t*step_time]]
+    df = df.astype({ 'cid': 'int32' })
     
     fig = px.choropleth_mapbox(
         df, 
-        locations='fips', 
-        color='cases',
+        locations='cid', 
+        color='risk',
         animation_frame='days',
         geojson=counties, 
-        featureidkey="properties.ID_2",
+        featureidkey="properties.id",
         color_continuous_scale="Viridis",
-        range_color=(0, 100),
+        range_color=(0, risk_range),
         hover_name=idmap*num_steps,
         center={ 'lon': -2, 'lat': 54 },
         mapbox_style="carto-positron",
         zoom=4.5,
         opacity=0.5,
-        labels={'cases':'Number of cases', 'fips': 'County number', 'days': 'Day'}
+        labels={'risk':'True positive rate', 'cid': 'Region ID', 'days': 'Day'}
     )
+
     fig.update_layout({ 'margin':{"r":0,"t":0,"l":0,"b":0}, 'height':600, 'uirevision': 'constant' })
     return fig
 
 # GENERATE GRAPH FIGURE
 
 def get_graph_figure(selections):
-    df = pd.DataFrame({ 'fips': [], 'days': [], 'cases': [] });
-    for t in range(0, 100):
-        data = get_dummy_data(t)
-        for i in selections:
-            df.loc[len(df.index)] = [i, t, data[i]]
-    df = df.astype({ 'fips': 'int32', 'days': 'int32' })
+    df = pd.DataFrame({ 'cid': [], 'days': [], 'risk': [] });
+    for i in selections:
+        for t in range(num_steps*step_time):
+            df.loc[len(df.index)] = [i, t, data[idmap[i]][t]]
+    df = df.astype({ 'cid': 'int32', 'days': 'int32' })
 
-    fig = px.line(df, x="days", y="cases", 
+    fig = px.line(df, x="days", y="risk", 
         # hover_name=idmap*20, 
-        color='fips', range_x=(0, 100), range_y=(0, 100))
+        color='cid', range_x=(0, num_steps*step_time), range_y=(0, risk_range))
     return fig
     
 
 ## CREATE APP
 
 app = DashProxy(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], prevent_initial_callbacks=True, transforms=[MultiplexerTransform()], )
-# app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 navbar = dbc.Navbar(
     dbc.Container([
@@ -112,7 +110,7 @@ app.layout = html.Div(children=[
                 dbc.Col(
                     dcc.Graph(
                         id='map-figure',
-                        figure=get_map_figure(20, 5)
+                        figure=get_map_figure()
                     ),
                     xxl=6,
                     xl=6,
@@ -167,8 +165,9 @@ app.layout = html.Div(children=[
     )
 ])
 
-selections = set()
+# CALLBACK
 
+selections = set()
 @app.callback(
     Output('graph-figure', 'figure'),
     Input('map-figure', 'clickData'))
@@ -192,9 +191,7 @@ def update_figure_2(clickInfo):
     print(clickInfo)
     if clickInfo is not None:
         selections = set()
-    print('AAAAAAAAAAAA')
     return get_graph_figure(selections)
-
 
 
 if __name__ == '__main__':

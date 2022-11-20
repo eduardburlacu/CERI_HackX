@@ -63,3 +63,9 @@ def get_predicted():
         prediction_dict[list_of_df[i][0]] = y_future
     return prediction_dict
 
+def test_get_y_data():
+    list_of_df = get_all_data()
+    for n in range(len(list_of_df)):
+        X,y = get_y_data(n, list_of_df)
+        for element in y:
+            assert (element>=0.) and (element<=1.)

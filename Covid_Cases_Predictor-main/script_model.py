@@ -6,13 +6,12 @@ import numpy as np
 model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model")
 data_dirname = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "county_data")
 
-
 def upload_model():
     with open(model_filename,'rb') as f:
         model = pickle.load(f)
     return model
 
-def process_csv():
+def get_all_data():
     list_of_df= []
     for (root, dirs, files) in os.walk(data_dirname):
         for file in files:
@@ -26,24 +25,24 @@ def process_csv():
                     for i in range(len(df)):
                         if df["newVirusTestsBySpecimenDate"][i]==0:
                             df.loc[i,'y']=0
-                    df.columns=['Date','Cases','Deaths','Tests','y']
+                    df.columns=['Date','Cases','Deaths','Tests','True_Positive']
                     #df=df.set_index('Date')
-                    list_of_df.append([name,df])
+                    list_of_df.append((name,df))
     return list_of_df
 
 def get_current_trends():
-    list_of_df = process_csv()
-    list_slopes=[]
-    list_means=[]
+    list_of_df = get_all_data()
+    trends_dict = {}
     for name,data in list_of_df:
-        slope, bias = np.polyfit(np.arange(0,100), data.y[-100:],1)
-        list_slopes.append(slope)
-        list_means.append(data.y.mean())
-    return list_means, list_slopes
+        trends_dict[name] = {}
+        for feature in data.columns[1:]:
+            slope, bias = np.polyfit(np.arange(0,14), data[feature][-14:],1)
+            trends_dict[name][feature] = (round(slope, 4), round(data[feature].mean(), 2))
+    return trends_dict
 
-def get_data(n, list_of_df):
+def get_y_data(n, list_of_df):
     past_values = 50
-    values=list(list_of_df[n][1].y)
+    values=list(list_of_df[n][1]["True_Positive"])
     X = []
     y = []
     for i in range(len(values)-past_values):
@@ -54,12 +53,12 @@ def get_data(n, list_of_df):
     return X, y
 
 def get_predicted():
-    list_of_df = process_csv()
+    list_of_df = get_all_data()
     model = upload_model()
     prediction_dict = {}
     for i in range(len(list_of_df)):
         past_values = 50
-        X, y = get_data(i, list_of_df)
+        X, y = get_y_data(i, list_of_df)
         y_future = model.predict(X[-1:]*1000)/1000
         y_future = y_future[0]
         for j, val in enumerate(y_future):
@@ -67,3 +66,9 @@ def get_predicted():
         prediction_dict[list_of_df[i][0]] = y_future
     return prediction_dict
 
+def test_get_y_data():
+    list_of_df = get_all_data()
+    for n in range(len(list_of_df)):
+        X,y = get_y_data(n, list_of_df)
+        for element in y:
+            assert (element>=0.) and (element<=1.)

@@ -12,19 +12,26 @@ import sys
 ## GET DATA
 
 sys.path.append('Covid_Cases_Predictor-main/')
-from script_model import *
-data_raw = get_predicted()
+from script_model2 import *
+data_raw = get_predicted(30)
+other_data_raw = get_other_predicted()
+# other_data_raw["York"]["Cases"] = lista 30 
 all_data_raw = get_all_data()
 sys.path.append('../')
 
 idmap = {}
 data = {}
 all_data = {}
+other_data = { 'Cases': {}, 'Deaths': {}, 'Tests': {} }
 with open('uk-counties-2.json') as file:
     counties = json.load(file)
 for f in counties['features']:
-    idmap[f['properties']['id']] = f['properties']['name']
-    data[f['properties']['name']] = data_raw[f['properties']['name']]
+    cnam = f['properties']['name']
+    idmap[f['properties']['id']] = cnam
+    data[cnam] = data_raw[cnam]
+    other_data['Cases'][cnam] = other_data_raw['Cases'][cnam]
+    other_data['Deaths'][cnam] = other_data_raw['Deaths'][cnam]
+    other_data['Tests'][cnam] = other_data_raw['Tests'][cnam]
 num_dataset = len(list(idmap.keys()))
 idmap = [idmap[i] for i in range(num_dataset)]
 for (cn, dn) in all_data_raw:
@@ -88,8 +95,8 @@ def get_table_old_figure(selected):
     if selected == -1:
         return go.Figure(
             data=[go.Table(
-            header=dict(values=['Date', 'Cases', 'Deaths', 'Tests', 'True Positivie Rate'], fill_color='paleturquoise', align='left'),
-            cells=dict(values=[[], [], [], []], fill_color='lavender', align='right'))
+            header=dict(values=['Date', 'Cases', 'Deaths', 'Tests', 'True Positivie Rate'], align='left'),
+            cells=dict(values=[[], [], [], []], align='right'))
     ])
     df = all_data[idmap[selected]]
     lastcol = np.around(np.array(df['True_Positive']), 4)
@@ -103,7 +110,7 @@ def get_table_new_figure(selected):
     if selected == -1:
         return go.Figure(
             data=[go.Table(
-                header=dict(values=['Days', 'True Positive Rate'], align='left'),
+                header=dict(values=['Days', 'Cases', 'Deaths', 'Tests', 'True Positive Rate'], align='left'),
             cells=dict(values=[[], []], align='right'))
     ])
     print(data[idmap[selected]], range(0, 30), data[idmap[selected]])
@@ -111,7 +118,7 @@ def get_table_new_figure(selected):
     return go.Figure(
         data=[go.Table(
             header=dict(values=['Days', 'True Positive Rate'], align='left'),
-            cells=dict(values=[list(range(0, 30)), row], align='right'))
+            cells=dict(values=[list(range(0, 30)), other_data['Cases'][selected], other_data['Deaths'][selected], other_data['Tests'][selected], row], align='right'))
     ])
 
 

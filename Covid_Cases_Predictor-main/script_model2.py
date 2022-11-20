@@ -3,9 +3,13 @@ import pandas as pd
 import os
 import numpy as np
 import pickle
+import json
 
 model_filename = os.path.join(os.getcwd(), "Covid_Cases_Predictor-main", "model2")
 data_dirname = os.path.join(os.getcwd(), "csvs")
+cache_dirname = os.path.join(os.getcwd(), '__mycache__');
+if not os.path.isdir(cache_dirname):
+    os.mkdir(cache_dirname)
 
 def get_all_data():
     list_of_df= []
@@ -49,6 +53,10 @@ def get_y_data(n, list_of_df, past_values=100):
 
 
 def get_predicted(steps):
+    pth = os.path.join(cache_dirname, 'predicted.json')
+    if os.path.isfile(pth):
+        return json.load(open(pth))
+
     list_of_df = get_all_data()
     model = load_model(model_filename)
     prediction_dict = {}
@@ -60,9 +68,15 @@ def get_predicted(steps):
             y_pred = model.predict(np.array([timeline[-size:]]))
             timeline = np.append(timeline, y_pred)
         prediction_dict[list_of_df[i][0]] = timeline[-steps:]
+
+    with open(pth, 'w') as fp:
+        json.dump(prediction_dict, fp)
     return prediction_dict
 
 def get_other_predicted():
+    pth = os.path.join(cache_dirname, 'other_predicted.json')
+    if os.path.isfile(pth):
+        return json.load(open(pth))
 
     list_of_df = get_all_data()
     prediction_dict = {}
@@ -81,6 +95,9 @@ def get_other_predicted():
             for j, val in enumerate(y_future):
                 if val < 0: y_future[j] = 0
             prediction_dict[list_of_df[i][0]][feat] = np.round(y_future)
+
+    with open(pth, 'w') as fp:
+        json.dump(prediction_dict, fp)
     return prediction_dict
     
 

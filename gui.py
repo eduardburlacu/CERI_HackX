@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, html, dcc, Input, Output
+from dash_extensions.enrich import MultiplexerTransform, DashProxy
+from dash import html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import json
+from perlin_noise import PerlinNoise
 
 ## GET DATA
 
@@ -18,6 +20,7 @@ def get_dummy_data(time):
     Output:
     df - case numbers for each county for a time t
     """
+    noise = PerlinNoise(octaves=10, seed=122)
     return rands * 50 + 25 - (coefs - 0.5) * time
 
 idmap = {}
@@ -35,8 +38,11 @@ def get_map_figure(num_steps, step_time):
     for t in range(num_steps):
         data = get_dummy_data(t*step_time)
         for i in range(len(data)):
-            df.loc[len(df.index)] = [i, f"Day {t*step_time}", data[i]]
+            df.loc[len(df.index)] = [int(i), f"Day {t*step_time}", data[i]]
     df = df.astype({ 'fips': 'int32' })
+    color='cases'
+    print(df[color])
+    print(df['days'])
     
     fig = px.choropleth_mapbox(
         df, 
@@ -47,6 +53,7 @@ def get_map_figure(num_steps, step_time):
         featureidkey="properties.ID_2",
         color_continuous_scale="Viridis",
         range_color=(0, 100),
+        hover_name=idmap*num_steps,
         center={ 'lon': -2, 'lat': 54 },
         mapbox_style="carto-positron",
         zoom=4.5,
@@ -54,7 +61,6 @@ def get_map_figure(num_steps, step_time):
         labels={'cases':'Number of cases', 'fips': 'County number', 'days': 'Day'}
     )
     fig.update_layout({ 'margin':{"r":0,"t":0,"l":0,"b":0}, 'height':600, 'uirevision': 'constant' })
-    fig.update_traces(showlegend=False)
     return fig
 
 # GENERATE GRAPH FIGURE
@@ -67,13 +73,16 @@ def get_graph_figure(selections):
             df.loc[len(df.index)] = [i, t, data[i]]
     df = df.astype({ 'fips': 'int32', 'days': 'int32' })
 
-    fig = px.line(df, x="days", y="cases", labels=idmap, color='fips', range_x=(0, 100), range_y=(0, 100))
+    fig = px.line(df, x="days", y="cases", 
+        # hover_name=idmap*20, 
+        color='fips', range_x=(0, 100), range_y=(0, 100))
     return fig
     
 
 ## CREATE APP
 
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = DashProxy(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], prevent_initial_callbacks=True, transforms=[MultiplexerTransform()], )
+# app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 navbar = dbc.Navbar(
     dbc.Container([
@@ -118,6 +127,7 @@ app.layout = html.Div(children=[
                             # Plots
                             Click a county to plot the number of cases in the next 30 days.
                         '''),
+                        dbc.Button(children='Clear', id='clear-btn', n_clicks=0),
                         dcc.Graph(
                             id='graph-figure',
                             figure=get_graph_figure(set())
@@ -161,7 +171,7 @@ selections = set()
 
 @app.callback(
     Output('graph-figure', 'figure'),
-    [Input('map-figure', 'clickData')])
+    Input('map-figure', 'clickData'))
 def update_figure(clickData):
     if clickData is not None:
         location = clickData['points'][0]['location']
@@ -174,6 +184,18 @@ def update_figure(clickData):
         print(selections)
 
     return get_graph_figure(selections)
+
+@app.callback(
+    Output('graph-figure', 'figure'),
+    Input('clear-btn', 'n_clicks'))
+def update_figure_2(clickInfo):
+    print(clickInfo)
+    if clickInfo is not None:
+        selections = set()
+    print('AAAAAAAAAAAA')
+    return get_graph_figure(selections)
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
